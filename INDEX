@@ -1,0 +1,23 @@
+001 - Excessive memory copying
+002 - Too many small kernels instead of fused
+003 - Low clockrate
+004 - Excessive casting
+005 - Local access optimizations when shared memory in use
+006 - Low Execution Unit Occupancy
+
+TODO:
+Too big kernel: Humonguous instruction text
+Too much app statistics/timing: eliminating unnecessary work
+Inadequate caching temporary results
+Poor GPU cache hit ratio
+Infinite invalid kernels: bad instruction
+Inefficient data preprocessing: too much time in CPU
+Frequent program kills/restarts
+API overhead
+Debug interface overhead (kernel driver)
+Sync mechanism (IPI/cross-call/etc. equiv)
+? Affinity issues: shaders on subslices etc.
+? Debug mode overhead (HW)
+? Thermal issue
+? Offline cores/HW components
+? EU migrations?

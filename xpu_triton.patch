@@ -1,0 +1,71 @@
+diff --git a/scripts/compile-triton.sh b/scripts/compile-triton.sh
+index 7abbb971c..21656e110 100755
+--- a/scripts/compile-triton.sh
++++ b/scripts/compile-triton.sh
+@@ -133,6 +133,7 @@ build_llvm() {
+   fi
+ 
+   cd $LLVM_PROJ_BUILD
++  export CFLAGS="-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer"
+   cmake -G Ninja ../llvm \
+     -DLLVM_ENABLE_DUMP=1 \
+     -DCMAKE_BUILD_TYPE=Release \
+diff --git a/scripts/install-pytorch.sh b/scripts/install-pytorch.sh
+index 4dfe14582..f14d187b1 100755
+--- a/scripts/install-pytorch.sh
++++ b/scripts/install-pytorch.sh
+@@ -196,6 +196,8 @@ function build_pytorch {
+   cd "$PYTORCH_PROJ"
+   pip install -r requirements.txt
+   pip install cmake ninja
++  export CMAKE_VERBOSE_MAKEFILE=1
++  export CFLAGS="-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -Wno-error=maybe-uninitialized"
+   USE_STATIC_MKL=1 python setup.py bdist_wheel
+ }
+ 
+diff --git a/scripts/patch-pytorch.sh b/scripts/patch-pytorch.sh
+index 92bc0ee76..5f2acfd32 100755
+--- a/scripts/patch-pytorch.sh
++++ b/scripts/patch-pytorch.sh
+@@ -19,3 +19,4 @@ cd "$REPO_ROOT"
+ # curl -sSL https://github.com/pytorch/pytorch/pull/126516.diff | git apply -
+ git apply "${SCRIPT_DIR}/pytorch_fp64.patch"
+ git apply "${SCRIPT_DIR}/pytorch.patch"
++git apply "${SCRIPT_DIR}/pytorch_frame_pointers.patch"
+diff --git a/scripts/pytorch_frame_pointers.patch b/scripts/pytorch_frame_pointers.patch
+new file mode 100644
+index 000000000..2c1d5710c
+--- /dev/null
++++ b/scripts/pytorch_frame_pointers.patch
+@@ -0,0 +1,18 @@
++diff --git a/cmake/Modules/FindMKLDNN.cmake b/cmake/Modules/FindMKLDNN.cmake
++index e774afe10e..4070d32feb 100644
++--- a/cmake/Modules/FindMKLDNN.cmake
+++++ b/cmake/Modules/FindMKLDNN.cmake
++@@ -47,11 +47,13 @@ IF(NOT MKLDNN_FOUND)
++     else()
++       set(DNNL_CXX_FLAGS "")
++     endif()
+++    set(DNNL_CXX_FLAGS "${DNNL_CXX_FLAGS} -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer")
++     ExternalProject_Add(xpu_mkldnn_proj
++       SOURCE_DIR ${MKLDNN_ROOT}
++       PREFIX ${XPU_MKLDNN_DIR_PREFIX}
++       BUILD_IN_SOURCE 0
++       CMAKE_ARGS  -DCMAKE_C_COMPILER=icx
+++      -DCMAKE_VERBOSE_MAKEFILE=1
++       -DCMAKE_CXX_COMPILER=${SYCL_CXX_DRIVER}
++       ${DNNL_CXX_FLAGS}
++       -DDNNL_GPU_RUNTIME=SYCL
+diff --git a/third_party/intel/backend/driver.py b/third_party/intel/backend/driver.py
+index 0fdda4939..767eed7a5 100644
+--- a/third_party/intel/backend/driver.py
++++ b/third_party/intel/backend/driver.py
+@@ -220,7 +220,7 @@ def compile_module_from_src(src, name):
+             src_path = os.path.join(tmpdir, "main.cpp")
+             with open(src_path, "w") as f:
+                 f.write(src)
+-            extra_compiler_args = []
++            extra_compiler_args = [ "-fno-omit-frame-pointer", "-mno-omit-leaf-frame-pointer" ]
+             if COMPILATION_HELPER.libsycl_dir:
+                 if os.name == "nt":
+                     extra_compiler_args += ["/LIBPATH:" + dir for dir in COMPILATION_HELPER.libsycl_dir]
